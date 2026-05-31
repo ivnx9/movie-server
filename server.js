@@ -1,25 +1,35 @@
 const express = require("express");
 const http = require("http");
-const path = require("path");
+const cors = require("cors");
 const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
-app.use(express.static(__dirname));
+app.use(cors());
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+app.get("/", (req, res) => {
+  res.send("Ivan Movies Remote Server is running.");
+});
 
 io.on("connection", socket => {
+  console.log("Connected:", socket.id);
+
   socket.on("join-tv", session => {
     socket.join("tv-" + session);
-    socket.data.session = session;
-    socket.data.type = "tv";
+    console.log("TV joined:", session);
   });
 
   socket.on("join-remote", session => {
     socket.join("remote-" + session);
-    socket.data.session = session;
-    socket.data.type = "remote";
+    console.log("Remote joined:", session);
 
     io.to("tv-" + session).emit("remote-connected");
   });
@@ -29,10 +39,14 @@ io.on("connection", socket => {
 
     io.to("tv-" + data.session).emit("remote-command", data.command);
   });
+
+  socket.on("disconnect", () => {
+    console.log("Disconnected:", socket.id);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log("Ivan Movies running on port " + PORT);
+  console.log("Server running on port " + PORT);
 });
