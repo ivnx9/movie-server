@@ -6,13 +6,26 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+const allowedOrigins = [
+  "https://exam-miner.com",
+  "http://exam-miner.com",
+  "https://www.exam-miner.com",
+  "http://www.exam-miner.com"
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ["websocket", "polling"]
 });
 
 app.get("/", (req, res) => {
@@ -30,13 +43,11 @@ io.on("connection", socket => {
   socket.on("join-remote", session => {
     socket.join("remote-" + session);
     console.log("Remote joined:", session);
-
     io.to("tv-" + session).emit("remote-connected");
   });
 
   socket.on("remote-command", data => {
     if (!data.session || !data.command) return;
-
     io.to("tv-" + data.session).emit("remote-command", data.command);
   });
 
